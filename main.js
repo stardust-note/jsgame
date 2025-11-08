@@ -17,7 +17,7 @@ const STATE = {
 const bird = {
   x: 80,
   y: canvas.height / 2,
-  radius: 16,
+  radius: 12,
   velocity: 0,
   rotation: 0,
 };
@@ -127,23 +127,32 @@ function drawBird() {
   ctx.translate(bird.x, bird.y);
   ctx.rotate(bird.rotation);
 
+  const bodyWidth = bird.radius + 3;
+  const bodyHeight = bird.radius;
+
   ctx.fillStyle = "#ffd166";
   ctx.beginPath();
-  ctx.ellipse(0, 0, bird.radius + 4, bird.radius, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, bodyWidth, bodyHeight, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = "#ff6b6b";
+  const cheekX = bird.radius * 0.45;
+  const cheekY = -bird.radius * 0.35;
+  const cheekRadius = bird.radius * 0.45;
   ctx.beginPath();
-  ctx.arc(bird.radius / 2, -6, 6, 0, Math.PI * 2);
+  ctx.arc(cheekX, cheekY, cheekRadius, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = "#fff";
+  const eyeX = bird.radius * 0.5;
+  const eyeY = -bird.radius * 0.3;
+  const eyeRadius = bird.radius * 0.35;
   ctx.beginPath();
-  ctx.arc(6, -4, 5, 0, Math.PI * 2);
+  ctx.arc(eyeX, eyeY, eyeRadius, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#000";
   ctx.beginPath();
-  ctx.arc(7, -4, 2, 0, Math.PI * 2);
+  ctx.arc(eyeX + eyeRadius * 0.25, eyeY, eyeRadius * 0.4, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.restore();
