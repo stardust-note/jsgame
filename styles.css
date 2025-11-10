@@ -73,6 +73,24 @@ canvas {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
+.skin-change-button:disabled,
+.skin-change-button.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  background: rgba(2, 30, 60, 0.3);
+  box-shadow: none;
+  transform: none;
+}
+
+.skin-change-button:disabled:hover,
+.skin-change-button:disabled:focus-visible,
+.skin-change-button.is-disabled:hover,
+.skin-change-button.is-disabled:focus-visible {
+  transform: none;
+  background: rgba(2, 30, 60, 0.3);
+  box-shadow: none;
+}
+
 .fever-button {
   position: absolute;
   left: 50%;

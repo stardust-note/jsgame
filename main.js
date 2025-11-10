@@ -61,6 +61,7 @@ let appliedSkinId = SKINS[0].id;
 let pendingSkinId = SKINS[0].id;
 let currentSkin = SKINS[0];
 let skinOptionButtons = [];
+let skinSelectionLocked = false;
 
 let widthScale = 1;
 let heightScale = 1;
@@ -141,11 +142,37 @@ function updateSkinSelectorCloseLabel() {
   skinSelectorClose.textContent = `${label}로 플레이`;
 }
 
+function updateSkinChangeButtonState() {
+  if (!skinChangeButton) return;
+  if (skinSelectionLocked) {
+    skinChangeButton.disabled = true;
+    skinChangeButton.setAttribute("aria-disabled", "true");
+    skinChangeButton.classList.add("is-disabled");
+  } else {
+    skinChangeButton.disabled = false;
+    skinChangeButton.removeAttribute("aria-disabled");
+    skinChangeButton.classList.remove("is-disabled");
+  }
+}
+
 function setPendingSkin(id) {
   if (!SKIN_MAP[id]) return;
   pendingSkinId = id;
   updateSkinOptionUI();
   updateSkinSelectorCloseLabel();
+}
+
+function setSkinSelectionLocked(locked) {
+  if (skinSelectionLocked === locked) {
+    return;
+  }
+  skinSelectionLocked = locked;
+  if (skinSelectionLocked && skinSelector) {
+    setPendingSkin(appliedSkinId);
+    skinSelector.classList.remove("is-open");
+    skinSelector.setAttribute("aria-hidden", "true");
+  }
+  updateSkinChangeButtonState();
 }
 
 function applySkin(id, { persist = true } = {}) {
@@ -167,7 +194,7 @@ function applySkin(id, { persist = true } = {}) {
 }
 
 function openSkinSelector(initial = false) {
-  if (!skinSelector) return;
+  if (!skinSelector || skinSelectionLocked) return;
   setPendingSkin(appliedSkinId);
   skinSelector.classList.add("is-open");
   skinSelector.setAttribute("aria-hidden", "false");
@@ -190,7 +217,7 @@ function closeSkinSelector({ apply = false } = {}) {
   }
   skinSelector.classList.remove("is-open");
   skinSelector.setAttribute("aria-hidden", "true");
-  if (skinChangeButton) {
+  if (skinChangeButton && !skinChangeButton.disabled) {
     skinChangeButton.focus({ preventScroll: true });
   }
 }
@@ -200,6 +227,7 @@ function isSkinSelectorOpen() {
 }
 
 function initializeSkinSelection() {
+  updateSkinChangeButtonState();
   if (!skinSelector) {
     const storedSkinId = localStorage.getItem("fluffySkin");
     if (storedSkinId && SKIN_MAP[storedSkinId]) {
@@ -258,6 +286,9 @@ function initializeSkinSelection() {
 
   if (skinChangeButton) {
     skinChangeButton.addEventListener("click", () => {
+      if (skinSelectionLocked) {
+        return;
+      }
       openSkinSelector();
     });
   }
@@ -428,6 +459,7 @@ function resetGame() {
 function startGame() {
   if (gameState === STATE.RUNNING) return;
   bird.velocity = flapStrength;
+  setSkinSelectionLocked(true);
   gameState = STATE.RUNNING;
 }
 
