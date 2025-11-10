@@ -2,13 +2,38 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const feverButton = document.getElementById("fever-button");
 
-const GRAVITY = 0.35;
-const FLAP = -6.5;
-const PIPE_SPEED = 2.2;
+const BASE_CONFIG = {
+  width: 400,
+  height: 600,
+  gravity: 0.35,
+  flap: -6.5,
+  pipeSpeed: 2.2,
+  pipeGapMin: 130,
+  pipeGapMax: 170,
+  pipeWidth: 70,
+  pipeMinHeight: 40,
+  birdRadius: 12,
+  birdStartX: 80,
+  groundHeight: 70,
+  groundShadow: 80,
+};
+
+let widthScale = 1;
+let heightScale = 1;
+let overallScale = 1;
+
+let gravity = BASE_CONFIG.gravity;
+let flapStrength = BASE_CONFIG.flap;
+let pipeSpeed = BASE_CONFIG.pipeSpeed;
+let pipeGapMin = BASE_CONFIG.pipeGapMin;
+let pipeGapMax = BASE_CONFIG.pipeGapMax;
+let pipeWidth = BASE_CONFIG.pipeWidth;
+let pipeMinHeight = BASE_CONFIG.pipeMinHeight;
+let groundHeight = BASE_CONFIG.groundHeight;
+let groundShadowHeight = BASE_CONFIG.groundShadow;
+
 const BASE_FRAME_TIME = 1000 / 60; // ms for a 60fps baseline
 const SPAWN_INTERVAL = 110 * BASE_FRAME_TIME; // ms
-const PIPE_GAP_MIN = 130;
-const PIPE_GAP_MAX = 170;
 const FEVER_DURATION = 5000; // ms
 const MAX_LIVES = 3;
 const COLLISION_COOLDOWN = 600; // ms
@@ -20,9 +45,9 @@ const STATE = {
 };
 
 const bird = {
-  x: 80,
-  y: canvas.height / 2,
-  radius: 12,
+  x: BASE_CONFIG.birdStartX,
+  y: BASE_CONFIG.height / 2,
+  radius: BASE_CONFIG.birdRadius,
   velocity: 0,
   rotation: 0,
 };
@@ -40,6 +65,69 @@ let lastTime = null;
 let spawnTimer = 0;
 let lives = MAX_LIVES;
 let collisionCooldown = 0;
+
+function resizeCanvas(maintainState = true) {
+  const previousWidth = canvas.width || BASE_CONFIG.width;
+  const previousHeight = canvas.height || BASE_CONFIG.height;
+
+  const targetWidth = Math.max(window.innerWidth || BASE_CONFIG.width, 320);
+  const targetHeight = Math.max(window.innerHeight || BASE_CONFIG.height, 320);
+
+  canvas.style.width = `${targetWidth}px`;
+  canvas.style.height = `${targetHeight}px`;
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  widthScale = canvas.width / BASE_CONFIG.width;
+  heightScale = canvas.height / BASE_CONFIG.height;
+  overallScale = Math.min(widthScale, heightScale);
+
+  gravity = BASE_CONFIG.gravity * heightScale;
+  flapStrength = BASE_CONFIG.flap * heightScale;
+  pipeSpeed = BASE_CONFIG.pipeSpeed * widthScale;
+  pipeGapMin = BASE_CONFIG.pipeGapMin * heightScale;
+  pipeGapMax = BASE_CONFIG.pipeGapMax * heightScale;
+  pipeWidth = BASE_CONFIG.pipeWidth * widthScale;
+  pipeMinHeight = BASE_CONFIG.pipeMinHeight * heightScale;
+  groundHeight = BASE_CONFIG.groundHeight * heightScale;
+  groundShadowHeight = BASE_CONFIG.groundShadow * heightScale;
+  bird.radius = BASE_CONFIG.birdRadius * overallScale;
+
+  if (!maintainState) {
+    return;
+  }
+
+  const widthRatio = previousWidth ? canvas.width / previousWidth : 1;
+  const heightRatio = previousHeight ? canvas.height / previousHeight : 1;
+
+  bird.x *= widthRatio;
+  bird.y *= heightRatio;
+  bird.velocity *= heightRatio;
+  bird.x = Math.min(canvas.width - bird.radius, Math.max(bird.radius, bird.x));
+  bird.y = Math.min(canvas.height - bird.radius, Math.max(bird.radius, bird.y));
+
+  pipes.forEach((pipe) => {
+    pipe.x *= widthRatio;
+    pipe.width *= widthRatio;
+    pipe.topHeight *= heightRatio;
+    pipe.gap *= heightRatio;
+    pipe.bottomY = pipe.topHeight + pipe.gap;
+  });
+}
+
+function scaleX(value) {
+  return value * widthScale;
+}
+
+function scaleY(value) {
+  return value * heightScale;
+}
+
+function scaledFontSize(base) {
+  const scaled = base * overallScale;
+  const clamped = Math.min(Math.max(scaled, base * 0.7), base * 1.6);
+  return Math.round(clamped);
+}
 
 function awardPipeClear(pipe) {
   if (!pipe || pipe.passed) {
@@ -107,6 +195,7 @@ function resetFeverState() {
 }
 
 function resetGame() {
+  bird.x = scaleX(BASE_CONFIG.birdStartX);
   bird.y = canvas.height / 2;
   bird.velocity = 0;
   bird.rotation = 0;
@@ -122,7 +211,7 @@ function resetGame() {
 
 function startGame() {
   if (gameState === STATE.RUNNING) return;
-  bird.velocity = FLAP;
+  bird.velocity = flapStrength;
   gameState = STATE.RUNNING;
 }
 
@@ -131,29 +220,30 @@ function flap() {
     startGame();
   }
   if (gameState === STATE.RUNNING) {
-    bird.velocity = FLAP;
+    bird.velocity = flapStrength;
   } else if (gameState === STATE.OVER) {
     resetGame();
   }
 }
 
 function spawnPipe() {
-  const gap = Math.random() * (PIPE_GAP_MAX - PIPE_GAP_MIN) + PIPE_GAP_MIN;
-  const minHeight = 40;
-  const maxHeight = canvas.height - gap - minHeight;
+  const gap = Math.random() * (pipeGapMax - pipeGapMin) + pipeGapMin;
+  const minHeight = pipeMinHeight;
+  const maxHeight = Math.max(minHeight, canvas.height - gap - minHeight);
   const topHeight = Math.random() * (maxHeight - minHeight) + minHeight;
 
   pipes.push({
-    x: canvas.width + 60,
-    width: 70,
+    x: canvas.width + pipeWidth,
+    width: pipeWidth,
     topHeight,
+    gap,
     bottomY: topHeight + gap,
     passed: false,
   });
 }
 
 function updateBird(deltaFactor) {
-  bird.velocity += GRAVITY * deltaFactor;
+  bird.velocity += gravity * deltaFactor;
   bird.y += bird.velocity * deltaFactor;
   bird.rotation = Math.min((bird.velocity / 10) * Math.PI, Math.PI / 2);
 
@@ -174,7 +264,7 @@ function updateBird(deltaFactor) {
 
 function updatePipes(deltaFactor, deltaTime) {
   pipes.forEach((pipe) => {
-    pipe.x -= PIPE_SPEED * deltaFactor;
+    pipe.x -= pipeSpeed * deltaFactor;
 
     if (!pipe.passed && pipe.x + pipe.width < bird.x - bird.radius) {
       awardPipeClear(pipe);
@@ -212,11 +302,11 @@ function handlePipeCollision(collidedPipe) {
     awardPipeClear(collidedPipe);
     collidedPipe.x = Math.min(
       collidedPipe.x,
-      bird.x - bird.radius - collidedPipe.width - 4
+      bird.x - bird.radius - collidedPipe.width - 4 * widthScale
     );
   }
   lives = Math.max(0, lives - 1);
-  bird.velocity = Math.min(bird.velocity, -3);
+  bird.velocity = Math.min(bird.velocity, -3 * heightScale);
   if (lives === 0) {
     endGame();
   }
@@ -289,35 +379,35 @@ function drawPipes() {
 function drawScore() {
   drawLives();
   ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-  ctx.font = "28px 'Noto Sans KR', sans-serif";
+  ctx.font = `${scaledFontSize(28)}px 'Noto Sans KR', sans-serif`;
   ctx.textAlign = "center";
-  ctx.fillText(`점수: ${score}`, canvas.width / 2, 60);
-  ctx.font = "18px 'Noto Sans KR', sans-serif";
-  ctx.fillText(`최고 점수: ${bestScore}`, canvas.width / 2, 90);
-  let statusY = 120;
+  ctx.fillText(`점수: ${score}`, canvas.width / 2, scaleY(60));
+  ctx.font = `${scaledFontSize(18)}px 'Noto Sans KR', sans-serif`;
+  ctx.fillText(`최고 점수: ${bestScore}`, canvas.width / 2, scaleY(90));
+  let statusY = scaleY(120);
   if (feverActive) {
     const remaining = Math.max(0, (feverEndTime - performance.now()) / 1000);
     ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-    ctx.font = "22px 'Noto Sans KR', sans-serif";
+    ctx.font = `${scaledFontSize(22)}px 'Noto Sans KR', sans-serif`;
     ctx.fillText(`무적 ${remaining.toFixed(1)}초`, canvas.width / 2, statusY);
-    statusY += 30;
+    statusY += scaleY(30);
   } else if (feverAvailable) {
     ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-    ctx.font = "20px 'Noto Sans KR', sans-serif";
+    ctx.font = `${scaledFontSize(20)}px 'Noto Sans KR', sans-serif`;
     ctx.fillText(`피버 준비 완료!`, canvas.width / 2, statusY);
-    statusY += 28;
+    statusY += scaleY(28);
   }
 }
 
 function drawLives() {
   ctx.save();
   ctx.textAlign = "left";
-  const starSize = 28;
-  const starGap = 12;
+  const starSize = Math.max(18, 28 * overallScale);
+  const starGap = Math.max(8, 12 * overallScale);
   const totalWidth = MAX_LIVES * starSize + (MAX_LIVES - 1) * starGap;
   const startX = canvas.width / 2 - totalWidth / 2;
-  const y = 36;
-  ctx.font = `${starSize}px 'Noto Sans KR', sans-serif`;
+  const y = scaleY(36);
+  ctx.font = `${Math.round(starSize)}px 'Noto Sans KR', sans-serif`;
   for (let i = 0; i < MAX_LIVES; i++) {
     ctx.fillStyle = i < lives ? "#ffd166" : "rgba(255, 255, 255, 0.25)";
     ctx.fillText("★", startX + i * (starSize + starGap), y);
@@ -329,12 +419,12 @@ function drawMessage() {
   ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
   ctx.textAlign = "center";
   if (gameState === STATE.READY) {
-    ctx.font = "28px 'Noto Sans KR', sans-serif";
+    ctx.font = `${scaledFontSize(28)}px 'Noto Sans KR', sans-serif`;
     ctx.fillText("스페이스 또는 클릭으로 시작!", canvas.width / 2, canvas.height / 2);
   } else if (gameState === STATE.OVER) {
-    ctx.font = "36px 'Noto Sans KR', sans-serif";
-    ctx.fillText("게임 오버", canvas.width / 2, canvas.height / 2 - 40);
-    ctx.font = "24px 'Noto Sans KR', sans-serif";
+    ctx.font = `${scaledFontSize(36)}px 'Noto Sans KR', sans-serif`;
+    ctx.fillText("게임 오버", canvas.width / 2, canvas.height / 2 - scaleY(40));
+    ctx.font = `${scaledFontSize(24)}px 'Noto Sans KR', sans-serif`;
     ctx.fillText("다시하려면 클릭 또는 스페이스", canvas.width / 2, canvas.height / 2);
   }
 }
@@ -347,9 +437,9 @@ function drawBackground() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.fillStyle = "#023047";
-  ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
+  ctx.fillRect(0, canvas.height - groundShadowHeight, canvas.width, groundShadowHeight);
   ctx.fillStyle = "#06d6a0";
-  ctx.fillRect(0, canvas.height - 70, canvas.width, 70);
+  ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
 }
 
 function loop(timestamp) {
@@ -408,5 +498,7 @@ if (feverButton) {
     activateFever();
   });
 }
+resizeCanvas(false);
 resetGame();
+window.addEventListener("resize", () => resizeCanvas());
 requestAnimationFrame(loop);
