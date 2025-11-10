@@ -35,3 +35,35 @@ canvas {
 .instructions p {
   margin: 0.2rem 0;
 }
+
+.fever-button {
+  display: none;
+  margin-top: 0.8rem;
+  padding: 0.6rem 1.4rem;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffd166, #ef476f);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.fever-button.is-visible {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.fever-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.fever-button:not(:disabled):active {
+  transform: translateY(1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
