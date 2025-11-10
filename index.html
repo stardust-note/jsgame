@@ -9,13 +9,21 @@
   <body>
     <main class="app">
       <h1>플러피 새</h1>
-      <canvas id="game" width="400" height="600" role="img" aria-label="플러피 새 게임 캔버스"></canvas>
-      <section class="instructions">
-        <p>스페이스바 또는 화면을 클릭해서 새를 날게 하세요.</p>
-        <p>파이프를 피하고 점수를 획득하세요!</p>
+      <div class="game-area">
+        <canvas
+          id="game"
+          width="400"
+          height="600"
+          role="img"
+          aria-label="플러피 새 게임 캔버스"
+        ></canvas>
         <button id="fever-button" type="button" class="fever-button" aria-live="polite">
           피버 준비!
         </button>
+      </div>
+      <section class="instructions">
+        <p>스페이스바 또는 화면을 클릭해서 새를 날게 하세요.</p>
+        <p>파이프를 피하고 점수를 획득하세요!</p>
       </section>
     </main>
     <script src="main.js"></script>
