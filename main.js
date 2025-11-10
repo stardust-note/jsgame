@@ -37,6 +37,7 @@ const SPAWN_INTERVAL = 110 * BASE_FRAME_TIME; // ms
 const FEVER_DURATION = 5000; // ms
 const MAX_LIVES = 3;
 const COLLISION_COOLDOWN = 600; // ms
+const COLLISION_FLASH_INTERVAL = 120; // ms
 
 const STATE = {
   READY: "ready",
@@ -65,6 +66,7 @@ let lastTime = null;
 let spawnTimer = 0;
 let lives = MAX_LIVES;
 let collisionCooldown = 0;
+let collisionFlashTimer = 0;
 
 function resizeCanvas(maintainState = true) {
   const previousWidth = canvas.width || BASE_CONFIG.width;
@@ -207,6 +209,7 @@ function resetGame() {
   lastTime = null;
   lives = MAX_LIVES;
   collisionCooldown = 0;
+  collisionFlashTimer = 0;
 }
 
 function startGame() {
@@ -298,6 +301,7 @@ function handlePipeCollision(collidedPipe) {
     return;
   }
   collisionCooldown = COLLISION_COOLDOWN;
+  collisionFlashTimer = COLLISION_COOLDOWN;
   if (collidedPipe) {
     awardPipeClear(collidedPipe);
     collidedPipe.x = Math.min(
@@ -323,6 +327,14 @@ function drawBird() {
   ctx.save();
   ctx.translate(bird.x, bird.y);
   ctx.rotate(bird.rotation);
+
+  if (collisionFlashTimer > 0) {
+    const flashPhase = Math.floor(collisionFlashTimer / COLLISION_FLASH_INTERVAL);
+    if (flashPhase % 2 === 0) {
+      ctx.restore();
+      return;
+    }
+  }
 
   const bodyWidth = bird.radius + 3;
   const bodyHeight = bird.radius;
@@ -450,6 +462,7 @@ function loop(timestamp) {
   const deltaFactor = deltaTime / BASE_FRAME_TIME;
   lastTime = timestamp;
   collisionCooldown = Math.max(0, collisionCooldown - deltaTime);
+  collisionFlashTimer = Math.max(0, collisionFlashTimer - deltaTime);
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
