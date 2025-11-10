@@ -57,7 +57,8 @@ const SKIN_MAP = SKINS.reduce((map, skin) => {
   return map;
 }, {});
 
-let selectedSkinId = SKINS[0].id;
+let appliedSkinId = SKINS[0].id;
+let pendingSkinId = SKINS[0].id;
 let currentSkin = SKINS[0];
 let skinOptionButtons = [];
 
@@ -117,7 +118,7 @@ function updateSkinOptionUI() {
     return;
   }
   skinOptionButtons.forEach((button) => {
-    const isSelected = button.dataset.skinOption === selectedSkinId;
+    const isSelected = button.dataset.skinOption === pendingSkinId;
     button.classList.toggle("is-selected", isSelected);
     button.setAttribute("aria-pressed", isSelected ? "true" : "false");
   });
@@ -135,15 +136,24 @@ function updateSkinChangeButtonLabel() {
 
 function updateSkinSelectorCloseLabel() {
   if (!skinSelectorClose) return;
-  const label = currentSkin ? currentSkin.name : "플러피";
+  const pendingSkin = SKIN_MAP[pendingSkinId] || currentSkin;
+  const label = pendingSkin ? pendingSkin.name : "플러피";
   skinSelectorClose.textContent = `${label}로 플레이`;
 }
 
-function setSkin(id, { persist = true } = {}) {
+function setPendingSkin(id) {
+  if (!SKIN_MAP[id]) return;
+  pendingSkinId = id;
+  updateSkinOptionUI();
+  updateSkinSelectorCloseLabel();
+}
+
+function applySkin(id, { persist = true } = {}) {
   const skin = SKIN_MAP[id];
   if (!skin) return;
-  selectedSkinId = skin.id;
+  appliedSkinId = skin.id;
   currentSkin = skin;
+  pendingSkinId = skin.id;
   if (persist) {
     try {
       localStorage.setItem("fluffySkin", skin.id);
@@ -158,6 +168,7 @@ function setSkin(id, { persist = true } = {}) {
 
 function openSkinSelector(initial = false) {
   if (!skinSelector) return;
+  setPendingSkin(appliedSkinId);
   skinSelector.classList.add("is-open");
   skinSelector.setAttribute("aria-hidden", "false");
   if (initial) {
@@ -170,8 +181,13 @@ function openSkinSelector(initial = false) {
   }
 }
 
-function closeSkinSelector() {
+function closeSkinSelector({ apply = false } = {}) {
   if (!skinSelector) return;
+  if (apply) {
+    applySkin(pendingSkinId);
+  } else {
+    setPendingSkin(appliedSkinId);
+  }
   skinSelector.classList.remove("is-open");
   skinSelector.setAttribute("aria-hidden", "true");
   if (skinChangeButton) {
@@ -187,9 +203,9 @@ function initializeSkinSelection() {
   if (!skinSelector) {
     const storedSkinId = localStorage.getItem("fluffySkin");
     if (storedSkinId && SKIN_MAP[storedSkinId]) {
-      setSkin(storedSkinId);
+      applySkin(storedSkinId);
     } else {
-      setSkin(selectedSkinId, { persist: false });
+      applySkin(appliedSkinId, { persist: false });
     }
     return;
   }
@@ -223,8 +239,7 @@ function initializeSkinSelection() {
     }
 
     button.addEventListener("click", () => {
-      setSkin(skinId);
-      closeSkinSelector();
+      setPendingSkin(skinId);
     });
   });
 
@@ -232,7 +247,7 @@ function initializeSkinSelection() {
   const hasStoredSkin = Boolean(storedSkinId && SKIN_MAP[storedSkinId]);
   const initialSkinId = hasStoredSkin ? storedSkinId : SKINS[0].id;
 
-  setSkin(initialSkinId, { persist: hasStoredSkin });
+  applySkin(initialSkinId, { persist: hasStoredSkin });
 
   if (!hasStoredSkin) {
     skinSelector.setAttribute("aria-hidden", "false");
@@ -249,19 +264,19 @@ function initializeSkinSelection() {
 
   if (skinSelectorClose) {
     skinSelectorClose.addEventListener("click", () => {
-      closeSkinSelector();
+      closeSkinSelector({ apply: true });
     });
   }
 
   skinSelector.addEventListener("click", (event) => {
     if (event.target === skinSelector) {
-      closeSkinSelector();
+      closeSkinSelector({ apply: false });
     }
   });
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && isSkinSelectorOpen()) {
-      closeSkinSelector();
+      closeSkinSelector({ apply: false });
     }
   });
 }
