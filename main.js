@@ -50,6 +50,20 @@ let spawnTimer = 0;
 let lives = MAX_LIVES;
 let collisionCooldown = 0;
 
+function awardPipeClear(pipe) {
+  if (!pipe || pipe.passed) {
+    return;
+  }
+  pipe.passed = true;
+  score += 1;
+  if (score > bestScore) {
+    bestScore = score;
+    localStorage.setItem("fluffyBest", bestScore);
+  }
+  checkFeverMilestone();
+  checkDashMilestone();
+}
+
 function showFeverButton() {
   if (!feverButton) return;
   feverAvailable = true;
@@ -231,14 +245,7 @@ function updatePipes(deltaFactor, deltaTime) {
     pipe.x -= pipeSpeed * deltaFactor;
 
     if (!pipe.passed && pipe.x + pipe.width < bird.x - bird.radius) {
-      pipe.passed = true;
-      score += 1;
-      if (score > bestScore) {
-        bestScore = score;
-        localStorage.setItem("fluffyBest", bestScore);
-      }
-      checkFeverMilestone();
-      checkDashMilestone();
+      awardPipeClear(pipe);
     }
   });
 
@@ -270,7 +277,7 @@ function handlePipeCollision(collidedPipe) {
   }
   collisionCooldown = COLLISION_COOLDOWN;
   if (collidedPipe) {
-    collidedPipe.passed = true;
+    awardPipeClear(collidedPipe);
     collidedPipe.x = Math.min(
       collidedPipe.x,
       bird.x - bird.radius - collidedPipe.width - 4
