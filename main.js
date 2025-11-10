@@ -1,7 +1,6 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const feverButton = document.getElementById("fever-button");
-const dashButton = document.getElementById("dash-button");
 
 const GRAVITY = 0.35;
 const FLAP = -6.5;
@@ -11,9 +10,6 @@ const SPAWN_INTERVAL = 110 * BASE_FRAME_TIME; // ms
 const PIPE_GAP_MIN = 130;
 const PIPE_GAP_MAX = 170;
 const FEVER_DURATION = 5000; // ms
-const DASH_DURATION = 2500; // ms
-const DASH_SPEED_MULTIPLIER = 2.8;
-const DASH_SCORE_INTERVAL = 3;
 const MAX_LIVES = 3;
 const COLLISION_COOLDOWN = 600; // ms
 
@@ -40,11 +36,6 @@ let feverAvailable = false;
 let feverTimeoutId = null;
 let feverEndTime = 0;
 let nextFeverScore = 5;
-let dashActive = false;
-let dashAvailable = false;
-let dashTimeoutId = null;
-let dashEndTime = 0;
-let nextDashScore = DASH_SCORE_INTERVAL;
 let lastTime = null;
 let spawnTimer = 0;
 let lives = MAX_LIVES;
@@ -61,7 +52,6 @@ function awardPipeClear(pipe) {
     localStorage.setItem("fluffyBest", bestScore);
   }
   checkFeverMilestone();
-  checkDashMilestone();
 }
 
 function showFeverButton() {
@@ -78,22 +68,6 @@ function hideFeverButton() {
   feverButton.disabled = true;
   feverButton.textContent = "피버 준비!";
   feverButton.classList.remove("is-visible");
-}
-
-function showDashButton() {
-  if (!dashButton) return;
-  dashAvailable = true;
-  dashButton.disabled = false;
-  dashButton.textContent = "대시 발동!";
-  dashButton.classList.add("is-visible");
-}
-
-function hideDashButton() {
-  if (!dashButton) return;
-  dashAvailable = false;
-  dashButton.disabled = true;
-  dashButton.textContent = "대시 준비!";
-  dashButton.classList.remove("is-visible");
 }
 
 function deactivateFever() {
@@ -126,46 +100,10 @@ function checkFeverMilestone() {
   }
 }
 
-function deactivateDash() {
-  dashActive = false;
-  dashEndTime = 0;
-  if (dashTimeoutId) {
-    clearTimeout(dashTimeoutId);
-    dashTimeoutId = null;
-  }
-}
-
-function activateDash() {
-  if (!dashAvailable || dashActive) return;
-  dashActive = true;
-  dashAvailable = false;
-  dashEndTime = performance.now() + DASH_DURATION;
-  if (dashTimeoutId) {
-    clearTimeout(dashTimeoutId);
-  }
-  dashTimeoutId = setTimeout(() => {
-    deactivateDash();
-  }, DASH_DURATION);
-  hideDashButton();
-}
-
-function checkDashMilestone() {
-  if (score >= nextDashScore && !dashActive && !dashAvailable) {
-    showDashButton();
-    nextDashScore += DASH_SCORE_INTERVAL;
-  }
-}
-
 function resetFeverState() {
   deactivateFever();
   hideFeverButton();
   nextFeverScore = 5;
-}
-
-function resetDashState() {
-  deactivateDash();
-  hideDashButton();
-  nextDashScore = DASH_SCORE_INTERVAL;
 }
 
 function resetGame() {
@@ -176,7 +114,6 @@ function resetGame() {
   score = 0;
   gameState = STATE.READY;
   resetFeverState();
-  resetDashState();
   spawnTimer = SPAWN_INTERVAL;
   lastTime = null;
   lives = MAX_LIVES;
@@ -235,14 +172,9 @@ function updateBird(deltaFactor) {
   }
 }
 
-function getCurrentPipeSpeed() {
-  return dashActive ? PIPE_SPEED * DASH_SPEED_MULTIPLIER : PIPE_SPEED;
-}
-
 function updatePipes(deltaFactor, deltaTime) {
-  const pipeSpeed = getCurrentPipeSpeed();
   pipes.forEach((pipe) => {
-    pipe.x -= pipeSpeed * deltaFactor;
+    pipe.x -= PIPE_SPEED * deltaFactor;
 
     if (!pipe.passed && pipe.x + pipe.width < bird.x - bird.radius) {
       awardPipeClear(pipe);
@@ -259,7 +191,7 @@ function updatePipes(deltaFactor, deltaTime) {
 }
 
 function detectCollision() {
-  if (feverActive || dashActive) return null;
+  if (feverActive) return null;
   return (
     pipes.find((pipe) => {
       const withinX =
@@ -283,9 +215,6 @@ function handlePipeCollision(collidedPipe) {
       bird.x - bird.radius - collidedPipe.width - 4
     );
   }
-  if (dashActive) {
-    return;
-  }
   lives = Math.max(0, lives - 1);
   bird.velocity = Math.min(bird.velocity, -3);
   if (lives === 0) {
@@ -298,8 +227,6 @@ function endGame() {
   gameState = STATE.OVER;
   deactivateFever();
   hideFeverButton();
-  deactivateDash();
-  hideDashButton();
 }
 
 function drawBird() {
@@ -380,16 +307,6 @@ function drawScore() {
     ctx.fillText(`피버 준비 완료!`, canvas.width / 2, statusY);
     statusY += 28;
   }
-  if (dashActive) {
-    const remaining = Math.max(0, (dashEndTime - performance.now()) / 1000);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-    ctx.font = "22px 'Noto Sans KR', sans-serif";
-    ctx.fillText(`대시 ${remaining.toFixed(1)}초`, canvas.width / 2, statusY);
-  } else if (dashAvailable) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-    ctx.font = "20px 'Noto Sans KR', sans-serif";
-    ctx.fillText(`대시 준비 완료!`, canvas.width / 2, statusY);
-  }
 }
 
 function drawLives() {
@@ -429,19 +346,6 @@ function drawBackground() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  if (dashActive) {
-    const now = performance.now();
-    ctx.save();
-    ctx.globalAlpha = 0.18;
-    ctx.fillStyle = "#ffffff";
-    const streakCount = 7;
-    for (let i = 0; i < streakCount; i++) {
-      const offset = ((now / 6 + i * (canvas.width / streakCount)) % canvas.width) - 20;
-      ctx.fillRect(offset, 0, 8, canvas.height);
-    }
-    ctx.restore();
-  }
-
   ctx.fillStyle = "#023047";
   ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
   ctx.fillStyle = "#06d6a0";
@@ -463,10 +367,6 @@ function loop(timestamp) {
   if (feverActive && performance.now() >= feverEndTime) {
     deactivateFever();
   }
-  if (dashActive && performance.now() >= dashEndTime) {
-    deactivateDash();
-  }
-
   if (gameState === STATE.RUNNING) {
     updateBird(deltaFactor);
     updatePipes(deltaFactor, deltaTime);
@@ -506,14 +406,6 @@ if (feverButton) {
       startGame();
     }
     activateFever();
-  });
-}
-if (dashButton) {
-  dashButton.addEventListener("click", () => {
-    if (gameState === STATE.READY) {
-      startGame();
-    }
-    activateDash();
   });
 }
 resetGame();
