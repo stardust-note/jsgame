@@ -252,7 +252,7 @@ function updatePipes(deltaFactor, deltaTime) {
 }
 
 function detectCollision() {
-  if (feverActive) return null;
+  if (feverActive || dashActive) return null;
   return (
     pipes.find((pipe) => {
       const withinX =
@@ -269,8 +269,6 @@ function handlePipeCollision(collidedPipe) {
     return;
   }
   collisionCooldown = COLLISION_COOLDOWN;
-  lives = Math.max(0, lives - 1);
-  bird.velocity = Math.min(bird.velocity, -3);
   if (collidedPipe) {
     collidedPipe.passed = true;
     collidedPipe.x = Math.min(
@@ -278,6 +276,11 @@ function handlePipeCollision(collidedPipe) {
       bird.x - bird.radius - collidedPipe.width - 4
     );
   }
+  if (dashActive) {
+    return;
+  }
+  lives = Math.max(0, lives - 1);
+  bird.velocity = Math.min(bird.velocity, -3);
   if (lives === 0) {
     endGame();
   }
