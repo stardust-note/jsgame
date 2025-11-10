@@ -201,13 +201,6 @@ function drawBackground() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = "#ffb703";
-  for (let i = 0; i < canvas.width; i += 80) {
-    ctx.beginPath();
-    ctx.arc(i + 20, 120, 30, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
   ctx.fillStyle = "#023047";
   ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
   ctx.fillStyle = "#06d6a0";
