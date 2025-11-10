@@ -38,6 +38,8 @@ const FEVER_DURATION = 5000; // ms
 const MAX_LIVES = 3;
 const COLLISION_COOLDOWN = 600; // ms
 const COLLISION_FLASH_INTERVAL = 120; // ms
+const PIPE_PHASE_DURATION = 900; // ms
+const PIPE_PHASE_SPEED_MULTIPLIER = 0.6;
 
 const STATE = {
   READY: "ready",
@@ -242,6 +244,7 @@ function spawnPipe() {
     gap,
     bottomY: topHeight + gap,
     passed: false,
+    phaseThroughTimer: 0,
   });
 }
 
@@ -267,7 +270,12 @@ function updateBird(deltaFactor) {
 
 function updatePipes(deltaFactor, deltaTime) {
   pipes.forEach((pipe) => {
-    pipe.x -= pipeSpeed * deltaFactor;
+    if (pipe.phaseThroughTimer > 0) {
+      pipe.phaseThroughTimer = Math.max(0, pipe.phaseThroughTimer - deltaTime);
+      pipe.x -= pipeSpeed * PIPE_PHASE_SPEED_MULTIPLIER * deltaFactor;
+    } else {
+      pipe.x -= pipeSpeed * deltaFactor;
+    }
 
     if (!pipe.passed && pipe.x + pipe.width < bird.x - bird.radius) {
       awardPipeClear(pipe);
@@ -284,9 +292,12 @@ function updatePipes(deltaFactor, deltaTime) {
 }
 
 function detectCollision() {
-  if (feverActive) return null;
+  if (feverActive || collisionCooldown > 0) return null;
   return (
     pipes.find((pipe) => {
+      if (pipe.phaseThroughTimer > 0) {
+        return false;
+      }
       const withinX =
         bird.x + bird.radius > pipe.x && bird.x - bird.radius < pipe.x + pipe.width;
       const hitTop = bird.y - bird.radius < pipe.topHeight;
@@ -300,14 +311,11 @@ function handlePipeCollision(collidedPipe) {
   if (collisionCooldown > 0) {
     return;
   }
-  collisionCooldown = COLLISION_COOLDOWN;
-  collisionFlashTimer = COLLISION_COOLDOWN;
+  collisionCooldown = Math.max(COLLISION_COOLDOWN, PIPE_PHASE_DURATION);
+  collisionFlashTimer = Math.max(collisionFlashTimer, PIPE_PHASE_DURATION);
   if (collidedPipe) {
     awardPipeClear(collidedPipe);
-    collidedPipe.x = Math.min(
-      collidedPipe.x,
-      bird.x - bird.radius - collidedPipe.width - 4 * widthScale
-    );
+    collidedPipe.phaseThroughTimer = PIPE_PHASE_DURATION;
   }
   lives = Math.max(0, lives - 1);
   bird.velocity = Math.min(bird.velocity, -3 * heightScale);
