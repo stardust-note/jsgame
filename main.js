@@ -1,6 +1,9 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const feverButton = document.getElementById("fever-button");
+const skinChangeButton = document.getElementById("skin-change");
+const skinSelector = document.getElementById("skin-selector");
+const skinSelectorClose = document.getElementById("skin-selector-close");
 
 const BASE_CONFIG = {
   width: 400,
@@ -17,6 +20,46 @@ const BASE_CONFIG = {
   groundHeight: 70,
   groundShadow: 80,
 };
+
+const SKINS = [
+  {
+    id: "sunny",
+    name: "햇살 플러피",
+    description: "따뜻한 노란빛 털과 핑크 볼",
+    colors: {
+      body: "#ffd166",
+      belly: "#ffe29a",
+      wing: "#f4a261",
+      cheek: "#ff6b6b",
+      eye: "#ffffff",
+      pupil: "#1f2933",
+      sparkle: "#ffeab6",
+    },
+  },
+  {
+    id: "berry",
+    name: "베리 플러피",
+    description: "달콤한 보라빛 털과 민트 볼",
+    colors: {
+      body: "#a06bff",
+      belly: "#cdb5ff",
+      wing: "#7b2cbf",
+      cheek: "#4cc9f0",
+      eye: "#f7f7ff",
+      pupil: "#24123f",
+      sparkle: "#d3c0ff",
+    },
+  },
+];
+
+const SKIN_MAP = SKINS.reduce((map, skin) => {
+  map[skin.id] = skin;
+  return map;
+}, {});
+
+let selectedSkinId = SKINS[0].id;
+let currentSkin = SKINS[0];
+let skinOptionButtons = [];
 
 let widthScale = 1;
 let heightScale = 1;
@@ -68,6 +111,160 @@ let spawnTimer = 0;
 let lives = MAX_LIVES;
 let collisionCooldown = 0;
 let collisionFlashTimer = 0;
+
+function updateSkinOptionUI() {
+  if (!skinOptionButtons.length) {
+    return;
+  }
+  skinOptionButtons.forEach((button) => {
+    const isSelected = button.dataset.skinOption === selectedSkinId;
+    button.classList.toggle("is-selected", isSelected);
+    button.setAttribute("aria-pressed", isSelected ? "true" : "false");
+  });
+}
+
+function updateSkinChangeButtonLabel() {
+  if (!skinChangeButton) return;
+  const label = currentSkin ? currentSkin.name : "스킨 변경";
+  skinChangeButton.textContent = currentSkin ? `스킨: ${label}` : "스킨 변경";
+  skinChangeButton.setAttribute(
+    "aria-label",
+    currentSkin ? `스킨 변경 (현재 ${label})` : "스킨 변경"
+  );
+}
+
+function updateSkinSelectorCloseLabel() {
+  if (!skinSelectorClose) return;
+  const label = currentSkin ? currentSkin.name : "플러피";
+  skinSelectorClose.textContent = `${label}로 플레이`;
+}
+
+function setSkin(id, { persist = true } = {}) {
+  const skin = SKIN_MAP[id];
+  if (!skin) return;
+  selectedSkinId = skin.id;
+  currentSkin = skin;
+  if (persist) {
+    try {
+      localStorage.setItem("fluffySkin", skin.id);
+    } catch (error) {
+      console.warn("스킨 정보를 저장하지 못했습니다.", error);
+    }
+  }
+  updateSkinOptionUI();
+  updateSkinChangeButtonLabel();
+  updateSkinSelectorCloseLabel();
+}
+
+function openSkinSelector(initial = false) {
+  if (!skinSelector) return;
+  skinSelector.classList.add("is-open");
+  skinSelector.setAttribute("aria-hidden", "false");
+  if (initial) {
+    requestAnimationFrame(() => {
+      const targetButton =
+        skinSelector.querySelector(".skin-option.is-selected") ||
+        skinOptionButtons[0];
+      targetButton?.focus();
+    });
+  }
+}
+
+function closeSkinSelector() {
+  if (!skinSelector) return;
+  skinSelector.classList.remove("is-open");
+  skinSelector.setAttribute("aria-hidden", "true");
+  if (skinChangeButton) {
+    skinChangeButton.focus({ preventScroll: true });
+  }
+}
+
+function isSkinSelectorOpen() {
+  return Boolean(skinSelector && skinSelector.classList.contains("is-open"));
+}
+
+function initializeSkinSelection() {
+  if (!skinSelector) {
+    const storedSkinId = localStorage.getItem("fluffySkin");
+    if (storedSkinId && SKIN_MAP[storedSkinId]) {
+      setSkin(storedSkinId);
+    } else {
+      setSkin(selectedSkinId, { persist: false });
+    }
+    return;
+  }
+
+  skinOptionButtons = Array.from(
+    skinSelector.querySelectorAll("[data-skin-option]")
+  );
+
+  skinOptionButtons.forEach((button) => {
+    const skinId = button.dataset.skinOption;
+    const skin = SKIN_MAP[skinId];
+    if (!skin) return;
+
+    button.style.setProperty("--skin-body", skin.colors.body);
+    button.style.setProperty(
+      "--skin-belly",
+      skin.colors.belly || skin.colors.body
+    );
+    button.style.setProperty(
+      "--skin-cheek",
+      skin.colors.cheek || skin.colors.body
+    );
+
+    const nameEl = button.querySelector("[data-skin-name]");
+    if (nameEl) {
+      nameEl.textContent = skin.name;
+    }
+    const descriptionEl = button.querySelector("[data-skin-description]");
+    if (descriptionEl) {
+      descriptionEl.textContent = skin.description;
+    }
+
+    button.addEventListener("click", () => {
+      setSkin(skinId);
+      closeSkinSelector();
+    });
+  });
+
+  const storedSkinId = localStorage.getItem("fluffySkin");
+  const hasStoredSkin = Boolean(storedSkinId && SKIN_MAP[storedSkinId]);
+  const initialSkinId = hasStoredSkin ? storedSkinId : SKINS[0].id;
+
+  setSkin(initialSkinId, { persist: hasStoredSkin });
+
+  if (!hasStoredSkin) {
+    skinSelector.setAttribute("aria-hidden", "false");
+    openSkinSelector(true);
+  } else {
+    skinSelector.setAttribute("aria-hidden", "true");
+  }
+
+  if (skinChangeButton) {
+    skinChangeButton.addEventListener("click", () => {
+      openSkinSelector();
+    });
+  }
+
+  if (skinSelectorClose) {
+    skinSelectorClose.addEventListener("click", () => {
+      closeSkinSelector();
+    });
+  }
+
+  skinSelector.addEventListener("click", (event) => {
+    if (event.target === skinSelector) {
+      closeSkinSelector();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && isSkinSelectorOpen()) {
+      closeSkinSelector();
+    }
+  });
+}
 
 function resizeCanvas(maintainState = true) {
   const previousWidth = canvas.width || BASE_CONFIG.width;
@@ -220,6 +417,9 @@ function startGame() {
 }
 
 function flap() {
+  if (isSkinSelectorOpen()) {
+    return;
+  }
   if (gameState === STATE.READY) {
     startGame();
   }
@@ -341,15 +541,47 @@ function drawBird() {
     }
   }
 
+  const skin = currentSkin || SKIN_MAP[selectedSkinId] || SKINS[0];
+  const colors = skin.colors;
   const bodyWidth = bird.radius + 3;
   const bodyHeight = bird.radius;
 
-  ctx.fillStyle = "#ffd166";
+  if (colors.wing) {
+    ctx.fillStyle = colors.wing;
+    ctx.beginPath();
+    ctx.ellipse(
+      -bird.radius * 0.35,
+      bird.radius * 0.12,
+      bodyWidth * 0.7,
+      bodyHeight * 0.8,
+      Math.PI / 4,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  }
+
+  ctx.fillStyle = colors.body;
   ctx.beginPath();
   ctx.ellipse(0, 0, bodyWidth, bodyHeight, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "#ff6b6b";
+  if (colors.belly) {
+    ctx.fillStyle = colors.belly;
+    ctx.beginPath();
+    ctx.ellipse(
+      -bird.radius * 0.12,
+      bird.radius * 0.18,
+      bodyWidth * 0.65,
+      bodyHeight * 0.7,
+      Math.PI / 12,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  }
+
+  ctx.fillStyle = colors.cheek || colors.body;
   const cheekX = bird.radius * 0.45;
   const cheekY = -bird.radius * 0.35;
   const cheekRadius = bird.radius * 0.45;
@@ -357,17 +589,24 @@ function drawBird() {
   ctx.arc(cheekX, cheekY, cheekRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "#fff";
+  ctx.fillStyle = colors.eye || "#fff";
   const eyeX = bird.radius * 0.5;
   const eyeY = -bird.radius * 0.3;
   const eyeRadius = bird.radius * 0.35;
   ctx.beginPath();
   ctx.arc(eyeX, eyeY, eyeRadius, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = "#000";
+  ctx.fillStyle = colors.pupil || "#000";
   ctx.beginPath();
   ctx.arc(eyeX + eyeRadius * 0.25, eyeY, eyeRadius * 0.4, 0, Math.PI * 2);
   ctx.fill();
+
+  if (colors.sparkle) {
+    ctx.fillStyle = colors.sparkle;
+    ctx.beginPath();
+    ctx.arc(eyeX + eyeRadius * 0.05, eyeY - eyeRadius * 0.35, eyeRadius * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   if (feverActive) {
     ctx.strokeStyle = "rgba(255, 215, 0, 0.85)";
@@ -502,12 +741,20 @@ window.addEventListener("keydown", (event) => {
     if (event.repeat) {
       return;
     }
+    if (isSkinSelectorOpen()) {
+      return;
+    }
     event.preventDefault();
     flap();
   }
 });
 
-canvas.addEventListener("pointerdown", flap);
+canvas.addEventListener("pointerdown", (event) => {
+  if (isSkinSelectorOpen()) {
+    return;
+  }
+  flap(event);
+});
 if (feverButton) {
   feverButton.addEventListener("click", () => {
     if (gameState === STATE.READY) {
@@ -516,6 +763,7 @@ if (feverButton) {
     activateFever();
   });
 }
+initializeSkinSelection();
 resizeCanvas(false);
 resetGame();
 window.addEventListener("resize", () => resizeCanvas());

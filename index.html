@@ -14,9 +14,68 @@
           role="img"
           aria-label="새 게임 캔버스"
         ></canvas>
+        <button
+          id="skin-change"
+          type="button"
+          class="skin-change-button"
+          aria-haspopup="dialog"
+        >
+          스킨 변경
+        </button>
         <button id="fever-button" type="button" class="fever-button" aria-live="polite">
           피버 준비!
         </button>
+        <div
+          id="skin-selector"
+          class="skin-selector"
+          role="presentation"
+          aria-hidden="true"
+        >
+          <div
+            class="skin-selector__dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="skin-selector-title"
+          >
+            <h2 class="skin-selector__title" id="skin-selector-title">플러피 스킨 선택</h2>
+            <p class="skin-selector__subtitle">
+              플러피가 모험을 떠나기 전에 모습을 골라 주세요!
+            </p>
+            <div class="skin-selector__options">
+              <button
+                type="button"
+                class="skin-option"
+                data-skin-option="sunny"
+                aria-pressed="false"
+              >
+                <span class="skin-option__preview" aria-hidden="true"></span>
+                <span class="skin-option__text">
+                  <strong class="skin-option__name" data-skin-name>햇살 플러피</strong>
+                  <span class="skin-option__description" data-skin-description>
+                    따뜻한 노란빛 털과 핑크 볼
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                class="skin-option"
+                data-skin-option="berry"
+                aria-pressed="false"
+              >
+                <span class="skin-option__preview" aria-hidden="true"></span>
+                <span class="skin-option__text">
+                  <strong class="skin-option__name" data-skin-name>베리 플러피</strong>
+                  <span class="skin-option__description" data-skin-description>
+                    달콤한 보라빛 털과 민트 볼
+                  </span>
+                </span>
+              </button>
+            </div>
+            <button type="button" class="skin-selector__close" id="skin-selector-close">
+              닫기
+            </button>
+          </div>
+        </div>
       </div>
     </main>
     <script src="main.js"></script>
