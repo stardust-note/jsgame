@@ -481,6 +481,9 @@ function loop(timestamp) {
 
 window.addEventListener("keydown", (event) => {
   if (event.code === "Space" || event.code === "ArrowUp") {
+    if (event.repeat) {
+      return;
+    }
     event.preventDefault();
     flap();
   }
