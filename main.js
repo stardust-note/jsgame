@@ -14,6 +14,8 @@ const FEVER_DURATION = 5000; // ms
 const DASH_DURATION = 2500; // ms
 const DASH_SPEED_MULTIPLIER = 2.8;
 const DASH_SCORE_INTERVAL = 3;
+const MAX_LIVES = 3;
+const COLLISION_COOLDOWN = 600; // ms
 
 const STATE = {
   READY: "ready",
@@ -45,6 +47,8 @@ let dashEndTime = 0;
 let nextDashScore = DASH_SCORE_INTERVAL;
 let lastTime = null;
 let spawnTimer = 0;
+let lives = MAX_LIVES;
+let collisionCooldown = 0;
 
 function showFeverButton() {
   if (!feverButton) return;
@@ -161,6 +165,8 @@ function resetGame() {
   resetDashState();
   spawnTimer = SPAWN_INTERVAL;
   lastTime = null;
+  lives = MAX_LIVES;
+  collisionCooldown = 0;
 }
 
 function startGame() {
@@ -246,14 +252,35 @@ function updatePipes(deltaFactor, deltaTime) {
 }
 
 function detectCollision() {
-  if (feverActive) return false;
-  return pipes.some((pipe) => {
-    const withinX =
-      bird.x + bird.radius > pipe.x && bird.x - bird.radius < pipe.x + pipe.width;
-    const hitTop = bird.y - bird.radius < pipe.topHeight;
-    const hitBottom = bird.y + bird.radius > pipe.bottomY;
-    return withinX && (hitTop || hitBottom);
-  });
+  if (feverActive) return null;
+  return (
+    pipes.find((pipe) => {
+      const withinX =
+        bird.x + bird.radius > pipe.x && bird.x - bird.radius < pipe.x + pipe.width;
+      const hitTop = bird.y - bird.radius < pipe.topHeight;
+      const hitBottom = bird.y + bird.radius > pipe.bottomY;
+      return withinX && (hitTop || hitBottom);
+    }) || null
+  );
+}
+
+function handlePipeCollision(collidedPipe) {
+  if (collisionCooldown > 0) {
+    return;
+  }
+  collisionCooldown = COLLISION_COOLDOWN;
+  lives = Math.max(0, lives - 1);
+  bird.velocity = Math.min(bird.velocity, -3);
+  if (collidedPipe) {
+    collidedPipe.passed = true;
+    collidedPipe.x = Math.min(
+      collidedPipe.x,
+      bird.x - bird.radius - collidedPipe.width - 4
+    );
+  }
+  if (lives === 0) {
+    endGame();
+  }
 }
 
 function endGame() {
@@ -323,6 +350,7 @@ function drawPipes() {
 }
 
 function drawScore() {
+  drawLives();
   ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
   ctx.font = "28px 'Noto Sans KR', sans-serif";
   ctx.textAlign = "center";
@@ -352,6 +380,22 @@ function drawScore() {
     ctx.font = "20px 'Noto Sans KR', sans-serif";
     ctx.fillText(`대시 준비 완료!`, canvas.width / 2, statusY);
   }
+}
+
+function drawLives() {
+  ctx.save();
+  ctx.textAlign = "left";
+  const starSize = 28;
+  const starGap = 12;
+  const totalWidth = MAX_LIVES * starSize + (MAX_LIVES - 1) * starGap;
+  const startX = canvas.width / 2 - totalWidth / 2;
+  const y = 36;
+  ctx.font = `${starSize}px 'Noto Sans KR', sans-serif`;
+  for (let i = 0; i < MAX_LIVES; i++) {
+    ctx.fillStyle = i < lives ? "#ffd166" : "rgba(255, 255, 255, 0.25)";
+    ctx.fillText("★", startX + i * (starSize + starGap), y);
+  }
+  ctx.restore();
 }
 
 function drawMessage() {
@@ -401,6 +445,7 @@ function loop(timestamp) {
   const deltaTime = Math.min(timestamp - lastTime, 1000);
   const deltaFactor = deltaTime / BASE_FRAME_TIME;
   lastTime = timestamp;
+  collisionCooldown = Math.max(0, collisionCooldown - deltaTime);
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
@@ -415,8 +460,9 @@ function loop(timestamp) {
   if (gameState === STATE.RUNNING) {
     updateBird(deltaFactor);
     updatePipes(deltaFactor, deltaTime);
-    if (detectCollision()) {
-      endGame();
+    const collidedPipe = detectCollision();
+    if (collidedPipe) {
+      handlePipeCollision(collidedPipe);
     }
   }
 
