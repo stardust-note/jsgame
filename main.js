@@ -5,7 +5,8 @@ const feverButton = document.getElementById("fever-button");
 const GRAVITY = 0.35;
 const FLAP = -6.5;
 const PIPE_SPEED = 2.2;
-const SPAWN_INTERVAL = 110; // frames
+const BASE_FRAME_TIME = 1000 / 60; // ms for a 60fps baseline
+const SPAWN_INTERVAL = 110 * BASE_FRAME_TIME; // ms
 const PIPE_GAP_MIN = 130;
 const PIPE_GAP_MAX = 170;
 const FEVER_DURATION = 5000; // ms
@@ -25,7 +26,6 @@ const bird = {
 };
 
 let pipes = [];
-let frame = 0;
 let score = 0;
 let bestScore = Number(localStorage.getItem("fluffyBest")) || 0;
 let gameState = STATE.READY;
@@ -34,6 +34,8 @@ let feverAvailable = false;
 let feverTimeoutId = null;
 let feverEndTime = 0;
 let nextFeverScore = 5;
+let lastTime = null;
+let spawnTimer = 0;
 
 function showFeverButton() {
   if (!feverButton) return;
@@ -92,10 +94,11 @@ function resetGame() {
   bird.velocity = 0;
   bird.rotation = 0;
   pipes = [];
-  frame = 0;
   score = 0;
   gameState = STATE.READY;
   resetFeverState();
+  spawnTimer = SPAWN_INTERVAL;
+  lastTime = null;
 }
 
 function startGame() {
@@ -130,9 +133,9 @@ function spawnPipe() {
   });
 }
 
-function updateBird() {
-  bird.velocity += GRAVITY;
-  bird.y += bird.velocity;
+function updateBird(deltaFactor) {
+  bird.velocity += GRAVITY * deltaFactor;
+  bird.y += bird.velocity * deltaFactor;
   bird.rotation = Math.min((bird.velocity / 10) * Math.PI, Math.PI / 2);
 
   if (bird.y + bird.radius >= canvas.height) {
@@ -150,9 +153,9 @@ function updateBird() {
   }
 }
 
-function updatePipes() {
+function updatePipes(deltaFactor, deltaTime) {
   pipes.forEach((pipe) => {
-    pipe.x -= PIPE_SPEED;
+    pipe.x -= PIPE_SPEED * deltaFactor;
 
     if (!pipe.passed && pipe.x + pipe.width < bird.x - bird.radius) {
       pipe.passed = true;
@@ -167,8 +170,10 @@ function updatePipes() {
 
   pipes = pipes.filter((pipe) => pipe.x + pipe.width > 0);
 
-  if (frame % SPAWN_INTERVAL === 0) {
+  spawnTimer += deltaTime;
+  if (spawnTimer >= SPAWN_INTERVAL) {
     spawnPipe();
+    spawnTimer %= SPAWN_INTERVAL;
   }
 }
 
@@ -289,7 +294,14 @@ function drawBackground() {
   ctx.fillRect(0, canvas.height - 70, canvas.width, 70);
 }
 
-function loop() {
+function loop(timestamp) {
+  if (lastTime === null) {
+    lastTime = timestamp;
+  }
+  const deltaTime = Math.min(timestamp - lastTime, 1000);
+  const deltaFactor = deltaTime / BASE_FRAME_TIME;
+  lastTime = timestamp;
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
@@ -298,16 +310,16 @@ function loop() {
   }
 
   if (gameState === STATE.RUNNING) {
-    updateBird();
-    updatePipes();
+    updateBird(deltaFactor);
+    updatePipes(deltaFactor, deltaTime);
     if (detectCollision()) {
       endGame();
     }
   }
 
   if (gameState !== STATE.RUNNING) {
-    bird.velocity *= 0.95;
-    bird.y += bird.velocity;
+    bird.velocity *= Math.pow(0.95, deltaFactor);
+    bird.y += bird.velocity * deltaFactor;
   }
 
   drawPipes();
@@ -315,7 +327,6 @@ function loop() {
   drawScore();
   drawMessage();
 
-  frame = (frame + 1) % 1000000;
   requestAnimationFrame(loop);
 }
 
@@ -336,4 +347,4 @@ if (feverButton) {
   });
 }
 resetGame();
-loop();
+requestAnimationFrame(loop);
