@@ -39,7 +39,6 @@ const MAX_LIVES = 3;
 const COLLISION_COOLDOWN = 600; // ms
 const COLLISION_FLASH_INTERVAL = 120; // ms
 const PIPE_PHASE_DURATION = 900; // ms
-const PIPE_PHASE_SPEED_MULTIPLIER = 0.6;
 
 const STATE = {
   READY: "ready",
@@ -272,10 +271,8 @@ function updatePipes(deltaFactor, deltaTime) {
   pipes.forEach((pipe) => {
     if (pipe.phaseThroughTimer > 0) {
       pipe.phaseThroughTimer = Math.max(0, pipe.phaseThroughTimer - deltaTime);
-      pipe.x -= pipeSpeed * PIPE_PHASE_SPEED_MULTIPLIER * deltaFactor;
-    } else {
-      pipe.x -= pipeSpeed * deltaFactor;
     }
+    pipe.x -= pipeSpeed * deltaFactor;
 
     if (!pipe.passed && pipe.x + pipe.width < bird.x - bird.radius) {
       awardPipeClear(pipe);
