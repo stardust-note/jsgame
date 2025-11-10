@@ -1,5 +1,6 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const feverButton = document.getElementById("fever-button");
 
 const GRAVITY = 0.35;
 const FLAP = -6.5;
@@ -7,6 +8,7 @@ const PIPE_SPEED = 2.2;
 const SPAWN_INTERVAL = 110; // frames
 const PIPE_GAP_MIN = 130;
 const PIPE_GAP_MAX = 170;
+const FEVER_DURATION = 5000; // ms
 
 const STATE = {
   READY: "ready",
@@ -27,6 +29,63 @@ let frame = 0;
 let score = 0;
 let bestScore = Number(localStorage.getItem("fluffyBest")) || 0;
 let gameState = STATE.READY;
+let feverActive = false;
+let feverAvailable = false;
+let feverTimeoutId = null;
+let feverEndTime = 0;
+let nextFeverScore = 5;
+
+function showFeverButton() {
+  if (!feverButton) return;
+  feverAvailable = true;
+  feverButton.disabled = false;
+  feverButton.textContent = "피버 발동!";
+  feverButton.classList.add("is-visible");
+}
+
+function hideFeverButton() {
+  if (!feverButton) return;
+  feverAvailable = false;
+  feverButton.disabled = true;
+  feverButton.textContent = "피버 준비!";
+  feverButton.classList.remove("is-visible");
+}
+
+function deactivateFever() {
+  feverActive = false;
+  feverEndTime = 0;
+  if (feverTimeoutId) {
+    clearTimeout(feverTimeoutId);
+    feverTimeoutId = null;
+  }
+}
+
+function activateFever() {
+  if (!feverAvailable || feverActive) return;
+  feverActive = true;
+  feverAvailable = false;
+  feverEndTime = performance.now() + FEVER_DURATION;
+  if (feverTimeoutId) {
+    clearTimeout(feverTimeoutId);
+  }
+  feverTimeoutId = setTimeout(() => {
+    deactivateFever();
+  }, FEVER_DURATION);
+  hideFeverButton();
+}
+
+function checkFeverMilestone() {
+  if (score >= nextFeverScore && !feverActive && !feverAvailable) {
+    showFeverButton();
+    nextFeverScore += 5;
+  }
+}
+
+function resetFeverState() {
+  deactivateFever();
+  hideFeverButton();
+  nextFeverScore = 5;
+}
 
 function resetGame() {
   bird.y = canvas.height / 2;
@@ -36,6 +95,7 @@ function resetGame() {
   frame = 0;
   score = 0;
   gameState = STATE.READY;
+  resetFeverState();
 }
 
 function startGame() {
@@ -77,7 +137,11 @@ function updateBird() {
 
   if (bird.y + bird.radius >= canvas.height) {
     bird.y = canvas.height - bird.radius;
-    endGame();
+    if (!feverActive) {
+      endGame();
+    } else {
+      bird.velocity = 0;
+    }
   }
 
   if (bird.y - bird.radius <= 0) {
@@ -97,6 +161,7 @@ function updatePipes() {
         bestScore = score;
         localStorage.setItem("fluffyBest", bestScore);
       }
+      checkFeverMilestone();
     }
   });
 
@@ -108,6 +173,7 @@ function updatePipes() {
 }
 
 function detectCollision() {
+  if (feverActive) return false;
   return pipes.some((pipe) => {
     const withinX =
       bird.x + bird.radius > pipe.x && bird.x - bird.radius < pipe.x + pipe.width;
@@ -120,6 +186,8 @@ function detectCollision() {
 function endGame() {
   if (gameState !== STATE.RUNNING) return;
   gameState = STATE.OVER;
+  deactivateFever();
+  hideFeverButton();
 }
 
 function drawBird() {
@@ -155,6 +223,14 @@ function drawBird() {
   ctx.arc(eyeX + eyeRadius * 0.25, eyeY, eyeRadius * 0.4, 0, Math.PI * 2);
   ctx.fill();
 
+  if (feverActive) {
+    ctx.strokeStyle = "rgba(255, 215, 0, 0.85)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, bird.radius + 8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
   ctx.restore();
 }
 
@@ -178,6 +254,12 @@ function drawScore() {
   ctx.fillText(`점수: ${score}`, canvas.width / 2, 60);
   ctx.font = "18px 'Noto Sans KR', sans-serif";
   ctx.fillText(`최고 점수: ${bestScore}`, canvas.width / 2, 90);
+  if (feverActive) {
+    const remaining = Math.max(0, (feverEndTime - performance.now()) / 1000);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.font = "22px 'Noto Sans KR', sans-serif";
+    ctx.fillText(`무적 ${remaining.toFixed(1)}초`, canvas.width / 2, 120);
+  }
 }
 
 function drawMessage() {
@@ -211,6 +293,10 @@ function loop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
+  if (feverActive && performance.now() >= feverEndTime) {
+    deactivateFever();
+  }
+
   if (gameState === STATE.RUNNING) {
     updateBird();
     updatePipes();
@@ -241,5 +327,13 @@ window.addEventListener("keydown", (event) => {
 });
 
 canvas.addEventListener("pointerdown", flap);
+if (feverButton) {
+  feverButton.addEventListener("click", () => {
+    if (gameState === STATE.READY) {
+      startGame();
+    }
+    activateFever();
+  });
+}
 resetGame();
 loop();
