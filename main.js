@@ -448,6 +448,7 @@ function resetGame() {
   pipes = [];
   score = 0;
   gameState = STATE.READY;
+  setSkinSelectionLocked(false);
   resetFeverState();
   spawnTimer = SPAWN_INTERVAL;
   lastTime = null;
