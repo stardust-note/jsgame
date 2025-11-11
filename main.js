@@ -1,6 +1,6 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const feverButton = document.getElementById("fever-button");
+const feverNotice = document.getElementById("fever-notice");
 const skinChangeButton = document.getElementById("skin-change");
 const skinSelector = document.getElementById("skin-selector");
 const skinSelectorClose = document.getElementById("skin-selector-close");
@@ -104,10 +104,10 @@ let score = 0;
 let bestScore = Number(localStorage.getItem("fluffyBest")) || 0;
 let gameState = STATE.READY;
 let feverActive = false;
-let feverAvailable = false;
 let feverTimeoutId = null;
 let feverEndTime = 0;
-let nextFeverScore = 5;
+let pipesSinceLastFever = 0;
+let feverNoticeTimeoutId = null;
 let lastTime = null;
 let spawnTimer = 0;
 let lives = MAX_LIVES;
@@ -388,22 +388,6 @@ function awardPipeClear(pipe) {
   checkFeverMilestone();
 }
 
-function showFeverButton() {
-  if (!feverButton) return;
-  feverAvailable = true;
-  feverButton.disabled = false;
-  feverButton.textContent = "피버 발동!";
-  feverButton.classList.add("is-visible");
-}
-
-function hideFeverButton() {
-  if (!feverButton) return;
-  feverAvailable = false;
-  feverButton.disabled = true;
-  feverButton.textContent = "피버 준비!";
-  feverButton.classList.remove("is-visible");
-}
-
 function deactivateFever() {
   feverActive = false;
   feverEndTime = 0;
@@ -411,12 +395,12 @@ function deactivateFever() {
     clearTimeout(feverTimeoutId);
     feverTimeoutId = null;
   }
+  pipesSinceLastFever = 0;
 }
 
 function activateFever() {
-  if (!feverAvailable || feverActive) return;
+  if (feverActive) return;
   feverActive = true;
-  feverAvailable = false;
   feverEndTime = performance.now() + FEVER_DURATION;
   if (feverTimeoutId) {
     clearTimeout(feverTimeoutId);
@@ -424,20 +408,21 @@ function activateFever() {
   feverTimeoutId = setTimeout(() => {
     deactivateFever();
   }, FEVER_DURATION);
-  hideFeverButton();
+  pipesSinceLastFever = 0;
+  showFeverNotice("5회 누적 무적 발생");
 }
 
 function checkFeverMilestone() {
-  if (score >= nextFeverScore && !feverActive && !feverAvailable) {
-    showFeverButton();
-    nextFeverScore += 5;
+  pipesSinceLastFever += 1;
+  if (pipesSinceLastFever >= 5 && !feverActive) {
+    activateFever();
   }
 }
 
 function resetFeverState() {
   deactivateFever();
-  hideFeverButton();
-  nextFeverScore = 5;
+  pipesSinceLastFever = 0;
+  hideFeverNotice();
 }
 
 function resetGame() {
@@ -573,7 +558,6 @@ function endGame() {
   if (gameState !== STATE.RUNNING) return;
   gameState = STATE.OVER;
   deactivateFever();
-  hideFeverButton();
 }
 
 function drawBird() {
@@ -695,11 +679,6 @@ function drawScore() {
     ctx.font = `${scaledFontSize(22)}px 'Noto Sans KR', sans-serif`;
     ctx.fillText(`무적 ${remaining.toFixed(1)}초`, canvas.width / 2, statusY);
     statusY += scaleY(30);
-  } else if (feverAvailable) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-    ctx.font = `${scaledFontSize(20)}px 'Noto Sans KR', sans-serif`;
-    ctx.fillText(`피버 준비 완료!`, canvas.width / 2, statusY);
-    statusY += scaleY(28);
   }
 }
 
@@ -803,13 +782,26 @@ canvas.addEventListener("pointerdown", (event) => {
   }
   flap(event);
 });
-if (feverButton) {
-  feverButton.addEventListener("click", () => {
-    if (gameState === STATE.READY) {
-      startGame();
-    }
-    activateFever();
-  });
+function showFeverNotice(message) {
+  if (!feverNotice) return;
+  feverNotice.textContent = message;
+  feverNotice.classList.add("is-visible");
+  if (feverNoticeTimeoutId) {
+    clearTimeout(feverNoticeTimeoutId);
+  }
+  feverNoticeTimeoutId = setTimeout(() => {
+    feverNotice.classList.remove("is-visible");
+    feverNoticeTimeoutId = null;
+  }, 1000);
+}
+
+function hideFeverNotice() {
+  if (!feverNotice) return;
+  if (feverNoticeTimeoutId) {
+    clearTimeout(feverNoticeTimeoutId);
+    feverNoticeTimeoutId = null;
+  }
+  feverNotice.classList.remove("is-visible");
 }
 initializeSkinSelection();
 resizeCanvas(false);
