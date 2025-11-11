@@ -91,51 +91,29 @@ canvas {
   box-shadow: none;
 }
 
-.fever-button {
+.fever-notice {
   position: absolute;
+  top: clamp(16px, 4vh, 40px);
   left: 50%;
-  bottom: clamp(16px, 5vh, 56px);
-  transform: translateX(-50%);
-  display: none;
-  padding: clamp(0.5rem, 2vh, 0.9rem) clamp(1.1rem, 6vw, 1.6rem);
-  border: none;
+  transform: translate(-50%, -12px);
+  padding: clamp(0.5rem, 1.6vh, 0.75rem) clamp(1.2rem, 3vw, 1.5rem);
   border-radius: 999px;
-  background: linear-gradient(135deg, #ffd166, #ef476f);
+  background: rgba(2, 30, 60, 0.6);
   color: #fff;
   font-size: clamp(0.9rem, 2.5vw, 1.1rem);
   font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  letter-spacing: 0.02em;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
 }
 
-.fever-button.is-visible {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  animation: fever-pulse 1.4s ease-in-out infinite;
-}
-
-.fever-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-  box-shadow: none;
-  animation: none;
-}
-
-.fever-button:not(:disabled):active {
-  transform: translateX(-50%) translateY(1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.fever-button.is-visible {
-  padding-left: 1rem;
-  padding-right: 1.1rem;
-  will-change: transform;
-}
-
-.fever-button.is-visible::before {
-  content: "✨";
+.fever-notice.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .skin-selector {
@@ -302,17 +280,5 @@ canvas {
 
 .skin-selector__close:active {
   transform: translateY(1px);
-}
-
-@keyframes fever-pulse {
-  0%,
-  100% {
-    transform: translateX(-50%) scale(1);
-    box-shadow: 0 8px 20px rgba(255, 209, 102, 0.45);
-  }
-  50% {
-    transform: translateX(-50%) scale(1.08);
-    box-shadow: 0 14px 30px rgba(239, 71, 111, 0.45);
-  }
 }
 
